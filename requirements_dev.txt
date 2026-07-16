@@ -19,7 +19,7 @@ coverage
 pytest
 pytest-cov
 reuse
-ruff==0.15.16
+ruff==0.15.22
 tox
 psutil
 yamllint
