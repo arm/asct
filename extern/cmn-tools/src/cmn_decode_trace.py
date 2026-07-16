@@ -1,0 +1,69 @@
+#!/usr/bin/python
+
+"""
+Decode a binary CMN ATB trace file.
+
+Copyright (C) ARM Ltd. 2018-2022.  All rights reserved.
+
+SPDX-License-Identifer: Apache-2.0
+"""
+
+from __future__ import print_function
+
+
+import sys
+
+
+import cs_decode
+import cs_decode_cmn
+import cmn_flits
+
+
+def main(argv):
+    import argparse
+    parser = argparse.ArgumentParser(description="decode a binary CMN ATB trace file")
+    parser.add_argument("-i", "--input", type=str, help="input trace binary")
+    parser.add_argument("--cmn-version", type=(lambda x: int(x, 0)), help="CMN version", required=True)
+    parser.add_argument("--cmn-revision", type=int, default=0, help="CMN revision")
+    parser.add_argument("--mpam", action="store_true", help="CMN has MPAM enabled")
+    parser.add_argument("--no-sync", action="store_true", help="don't look for sync sequence")
+    parser.add_argument("--ignore", type=str, action="append", default=[], help="ignore trace stream(s)")
+    parser.add_argument("--unformatted", action="store_true", help="trace file has no CoreSight framing")
+    parser.add_argument("--reorder-cc-window", type=int, default=0, help="allow small same-stream CC reorder within this window; cross-stream order uses packet start position")
+    parser.add_argument("-v", "--verbose", action="count", default=0, help="increase verbosity")
+    parser.add_argument("inputs", type=str, nargs="*", help="input trace binaries")
+    opts = parser.parse_args(argv)
+    if opts.input is not None:
+        opts.inputs.insert(0, opts.input)
+    if not opts.inputs:
+        print("%s: input files are required" % __file__, file=sys.stderr)
+        sys.exit(1)
+    cfg = cs_decode_cmn.CMNTraceConfig(opts.cmn_version, cmn_product_revision=opts.cmn_revision, has_MPAM=opts.mpam)
+    reorderer = cs_decode_cmn.CMNTraceCCReorderer(opts.reorder_cc_window) if opts.reorder_cc_window > 0 else None
+    def new_decoder(id=None):
+        decoder = cs_decode_cmn.CMNDecoder(cfg, id=id, verbose=opts.verbose, reorderer=reorderer)
+        return cs_decode_cmn.CMNDecoderPump(decoder, sync=(not opts.no_sync))
+    if opts.unformatted:
+        # One stream, one decoder
+        decode_map = {"unformatted": new_decoder()}
+    else:
+        # Multiplexed streams: now pass in a factory function
+        decode_map = {"default": new_decoder}
+    for ign_ids in opts.ignore:
+        for ign_id in ign_ids.split(','):
+            id = int(ign_id, 0)
+            decode_map[id] = cs_decode.sink()
+    for fn in opts.inputs:
+        if opts.verbose:
+            print("Decoding CMN trace in '%s'..." % fn, file=sys.stderr)
+        with open(fn, "rb") as f:
+            try:
+                cs_decode.stream_decode(f, decode_map, verbose=opts.verbose)
+                if reorderer is not None:
+                    reorderer.flush()
+            except cs_decode.TraceCorrupt as e:
+                print("%s: trace error: %s" % (fn, str(e)), file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

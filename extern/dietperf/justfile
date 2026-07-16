@@ -1,0 +1,52 @@
+set positional-arguments
+
+# cmn device name from /sys/bus/event_source/devices/
+cmn_dev := "arm_cmn_0"
+cmn := cmn_dev / "type=0x7770,eventid=0,bynodeid=0,nodeid=0,occupid=0,wp_dev_sel=0,wp_chn_sel=0,wp_grp=0,wp_exclusive=0,wp_combine=0,wp_val=0x200000000,wp_mask=0xffffffe07fffffff/," + cmn_dev / "type=0x7770,eventid=0,bynodeid=0,nodeid=0,occupid=0,wp_dev_sel=1,wp_chn_sel=0,wp_grp=0,wp_exclusive=0,wp_combine=0,wp_val=0x200000000,wp_mask=0xffffffe07fffffff/," + cmn_dev / "type=0xa,eventid=0xc/"
+pmu := "0x4,0x11,0x8"
+outdir := "outdir"
+
+# use hardcoded DIETPERF_PMUv3 + DIETPERF_CMN env vars
+default:
+  just build
+  DIETPERF_PMUv3={{pmu}} DIETPERF_CMN={{cmn}} ./example
+
+build:
+  gcc -g \
+    -Wall -Werror -Wextra \
+    -fsanitize=hwaddress -fsanitize=undefined -fsanitize=leak \
+    example.c -o example
+
+# test output to file
+outdir:
+  just build
+  DIETPERF_OUTDIR={{outdir}} DIETPERF_PMUv3={{pmu}} DIETPERF_CMN={{cmn}} ./example
+
+# provide DIETPERF_PMUv3 + DIETPERF_CMN as arguments
+arg pmu_evlist cmn_evlist:
+  just build
+  DIETPERF_PMUv3=$1 DIETPERF_CMN=$2 ./example
+
+# only DIETPERF_PMUv3
+pmu pmu_evlist:
+  just build
+  DIETPERF_PMUv3=$1 ./example
+
+# only DIETPERF_CMN
+cmn cmn_evlist:
+  just build
+  DIETPERF_CMN=$1 ./example
+
+# call with no arguments
+none:
+  just build
+  ./example
+
+# format C files with clang-format
+format:
+  clang-format -i dietperf.h example.c
+
+# call the example with gdb
+debug pmuv3_evlist cmn_evlist:
+  just build
+  DIETPERF_PMUv3=$1 DIETPERF_CMN=$2 gdb ./example

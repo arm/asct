@@ -1,0 +1,140 @@
+# SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# This workflow will install Python dependencies,
+# execute unit tests with `pytest` across several Python
+# environments using `tox`, and report coverage and
+# results to the PR
+
+name: ASCT Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [synchronize, opened, reopened, ready_for_review]  # Runs on pull requests
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+  checks: write
+  pull-requests: write
+
+env:
+  ASCT_MIN_IPERF3_VERSION: "3.0.4"
+  ASCT_CHECK_IPERF3_MIN_VERSION_FUNC: |
+    check_iperf3_min_version() {
+      local required_version="${ASCT_MIN_IPERF3_VERSION:?}"
+      local raw_version
+      local iperf3_version
+
+      raw_version="$(iperf3 --version | head -n1 | sed -E 's/^iperf[[:space:]]+//; s/[[:space:]].*$//')"
+      iperf3_version="${raw_version%%-*}"
+      echo "Current iperf3 version: ${iperf3_version}"
+      echo "Minimum iperf3 version: ${required_version}"
+
+      if [ "$(printf '%s\n' "$required_version" "$iperf3_version" | sort -V | head -n1)" = "$required_version" ]; then
+        echo "iperf3 version is sufficient."
+      else
+        echo "iperf3 ${iperf3_version} is older than required minimum ${required_version}." >&2
+        return 1
+      fi
+    }
+  ASCT_IPERF3_TEST_PORT: "25201"
+  ASCT_CLEANUP_IPERF3_TEST_PORT_FUNC: |
+    cleanup_iperf3_test_port() {
+      local port="${1:-25201}"
+      local pids
+      local remaining_pids
+
+      echo "Checking for leftover iperf3 test processes on port ${port}..."
+      pids="$(sudo fuser "${port}/tcp" 2>/dev/null || true)"
+      if [ -z "$pids" ]; then
+        echo "No process found on iperf3 test port ${port}/tcp."
+        return 0
+      fi
+
+      echo "Found process(es) on iperf3 test port ${port}/tcp: $pids"
+      sudo fuser -k -TERM "${port}/tcp" || true
+      sleep 1
+
+      remaining_pids="$(sudo fuser "${port}/tcp" 2>/dev/null || true)"
+      if [ -z "$remaining_pids" ]; then
+        echo "No process remains on iperf3 test port ${port}/tcp after TERM."
+        return 0
+      fi
+
+      echo "Force-killing process(es) still on iperf3 test port ${port}/tcp: $remaining_pids"
+      sudo fuser -k -KILL "${port}/tcp" || true
+    }
+
+jobs:
+  tests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          submodules: true
+
+      - name: ⤵️ Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: ⤵️ Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y iperf3
+          iperf3 --version
+          eval "$ASCT_CHECK_IPERF3_MIN_VERSION_FUNC"
+          check_iperf3_min_version
+
+      - name: ⤵️ Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements_dev.txt
+
+      - name: 🚀 Test with tox
+        # Run tox with the version of python in the PATH
+        run: tox -e py
+
+      - name: ⤴️ Publish Test Results
+        # This adds additional info to code climate beyond the code coverage results
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          comment_mode: "off"
+          files: |
+            test-results/*.xml
+            test-results/**/*.xml
+
+      - name: ⤴️ Upload coverage to Qlty
+        # project dashboard: https://qlty.sh/gh/Arm-Debug/projects/asct
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
+        uses: qltysh/qlty-action/coverage@v2
+        with:
+          token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
+          tag: unit
+          files: coverage.xml
+
+      - name: 🏁 Custom Cleanup - Delete output files and change ownership
+        # Will run this step even if it's cancelled through concurrency settings
+        if: always()
+        run: |
+          echo "Cleaning up workspace..."
+          eval "$ASCT_CLEANUP_IPERF3_TEST_PORT_FUNC"
+          cleanup_iperf3_test_port "$ASCT_IPERF3_TEST_PORT"
+          sudo rm -rf .pytest_cache
+          sudo rm -rf test-results
+          echo "Cleanup complete."

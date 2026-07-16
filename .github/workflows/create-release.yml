@@ -1,0 +1,230 @@
+# SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# This workflow is triggered when a pull request with the title format "[Release] vX.Y.Z" and label "release-candidate" is merged.
+# It will:
+# - create a new github release with the version specified in the PR title
+# - tag the commit with vX.Y.Z
+# - build the source distribution and upload it to the GitHub release
+# - create a asct_docs.zip file with the HTML docs generated from the README.md
+
+name: Create GitHub Release
+
+permissions:
+  contents: write
+  issues: write                  # needed to comment on PRs (uses Issues API)
+  pull-requests: write           # (safe to include; some tools prefer this)
+
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+
+jobs:
+  tag-and-release:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: 🔎 Check PR title ([Release] vX.Y.Z) and label (release-candidate)
+        id: check_title
+        run: |
+          set -euo pipefail
+          title="${{ github.event.pull_request.title }}"
+          labels='${{ toJson(github.event.pull_request.labels.*.name) }}'
+          echo "PR Title: $title"
+          echo "PR Labels: $labels"
+
+          skip=true
+          is_patch=false
+
+          if [[ "$title" =~ \[Release\]\ v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            if grep -q '"release-candidate"' <<<"$labels"; then
+              skip=false
+              VERSION="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
+              echo "✅ Matched version: $VERSION"
+              echo "version=$VERSION" >> $GITHUB_OUTPUT
+              RELEASE_VERSION="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+              echo "release_version=$RELEASE_VERSION" >> $GITHUB_OUTPUT
+              if [[ "${BASH_REMATCH[3]}" == "0" ]]; then
+                is_patch=false
+              else
+                is_patch=true
+              fi
+            else
+              echo "🛑 This doesn't appear to be a release pull request. Missing 'release-candidate' label"
+            fi
+          else
+            echo "🛑 This doesn't appear to be a release pull request. PR title doesn't match '[Release] vX.Y.Z'"
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0  # If no match, then this isn't a release PR and we want to skip the rest of the workflow.
+          fi
+          echo "skip=$skip" >> $GITHUB_OUTPUT
+          echo "is_patch=$is_patch" >> $GITHUB_OUTPUT
+        # outputs we care about:
+        #   steps.check_title.outputs.skip -> 'true' or 'false' (should we skip the rest of the workflow?)
+        #   steps.check_title.outputs.is_patch -> 'true' or 'false' (is this a patch release, i.e., Z != 0 in X.Y.Z)
+        #   steps.check_title.outputs.version -> X.Y.Z (the version number extracted from the PR title)
+        #   steps.check_title.outputs.release_version -> X.Y (the major.minor version number extracted from the PR title)
+
+      - name: ⤵️ Checkout code at merge commit
+        if: steps.check_title.outputs.skip != 'true'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: ⤵️ Set up Python
+        if: steps.check_title.outputs.skip != 'true'
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: ⤵️ Install build dependencies
+        if: steps.check_title.outputs.skip != 'true'
+        run: python -m pip install --upgrade setuptools build
+
+      - name: ⤵️ Install pandoc
+        run: |
+          sudo apt-get install -y pandoc
+
+      - name: 📦 Build sdist
+        if: steps.check_title.outputs.skip != 'true'
+        run: |
+            # Building the source release package
+            ./build.sh release
+
+      - name: ✅ Sanity check before release
+        if: steps.check_title.outputs.skip != 'true'
+        run: |
+            VERSION="${{ steps.check_title.outputs.version }}"
+            # Check if we have exactly one file in sdist
+            mapfile -d '' -t dist_files < <(find dist -maxdepth 1 -type f -print0)
+            dist_file_count=${#dist_files[@]}
+            if [ $dist_file_count -ne 1 ]; then
+              echo "❌ Error: Unexpected number of sdist files: $file_count"
+              exit 1
+            fi
+            dist_file_name=$(basename ${dist_files[0]})
+
+            # extracting version and git hash from dist_file_name=asct-0.2.0+b1f1eb7.tar.gz (for example)
+            ver="${dist_file_name#asct-}"       # drop up to first '-': 0.2.0+b1f1eb7.tar.gz
+            ver="${ver%%+*}"                    # keep before '+': 0.2.0
+
+            if [ "$ver" != "$VERSION" ]; then
+              echo "❌ Error: sdist filename $dist_file_name doesn't include the correct version number."
+              echo "          '$ver' != '$VERSION'"
+              exit 1
+            fi
+
+            GIT_SHA=$(git rev-parse --short HEAD)
+
+            if [[ "${dist_file_name}" != *"${GIT_SHA}"* ]]; then
+              echo "❌ Error: sdist filename $dist_file_name doesn't include the correct git sha: $GIT_SHA"
+              exit 1
+            fi
+
+      - name: 🏷️ Create tag vX.Y.Z
+        id: create_tag
+        if: steps.check_title.outputs.skip != 'true'
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+
+          VERSION="${{ steps.check_title.outputs.version }}"
+          TAG="v$VERSION"
+
+          git tag "$TAG" ${{ github.event.pull_request.merge_commit_sha }}
+          git push origin "$TAG"
+
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: 📖 Generate steps to run Publish workflows
+        id: create_publication_info
+        if: steps.check_title.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG_NAME="${{ steps.create_tag.outputs.tag }}"
+
+          # 1) Create a template that uses a literal $TAG_NAME placeholder.
+          #    Single-quoted delimiter keeps *everything* literal here.
+          cat > publish.tmpl <<'TPL'
+          # Publish Artifacts
+
+          To copy the package and documentation:
+          1. Click the 'Publish to Artifactory' badge below to view the 'Actions' page for the workflows
+          1. Click 'Run workflow' dropdown in the upper right
+          1. In the 'Branch:' dropdown select this tag: $TAG_NAME
+          1. Choose whether to 'Publish to external Artifactory (true/false)'
+
+          [![Publish to Artifactory](https://img.shields.io/badge/Publish%20to-Artifactory-blue?logo=jFrog)](https://github.com/Arm-Debug/asct/actions/workflows/publish-to-artifactory.yml)
+
+          | Artifactory | Download URL     |
+          | ----------- | ---------------- |
+          | Internal    | <!-- REPLACE_WITH_INTERNAL_RELEASE_URL --> |
+          | External    | <!-- REPLACE_WITH_EXTERNAL_RELEASE_URL --> |
+          TPL
+
+          # 2) Substitute the $TAG_NAME placeholder (no external deps required).
+          sed "s/\$TAG_NAME/${TAG_NAME}/g" publish.tmpl > publish.md
+
+          # 3) Expose as a multi-line step output.
+          {
+            echo 'publish_steps<<PUBLISH_EOF'
+            cat publish.md
+            echo 'PUBLISH_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+          rm publish.tmpl publish.md  # clean up so we don't accidentally commit these files
+
+      - name: 🚀 Create GitHub Release
+        id: create_github_release
+        if: steps.check_title.outputs.skip != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: "v${{ steps.check_title.outputs.version }}"
+          name: "Release ${{ steps.check_title.outputs.version }}"
+          body: |
+            ${{ github.event.pull_request.body }}
+
+            Release created from PR #${{ github.event.pull_request.number }}
+
+            ${{ steps.create_publication_info.outputs.publish_steps }}
+          # outputs we care about:
+          # steps.create_github_release.outputs.url -> release HTML page
+
+      - name: ✏️ Update VERSION in main through PR (if not a patch release)
+        if: steps.check_title.outputs.skip != 'true' && steps.check_title.outputs.is_patch == 'false'
+        uses: ./.github/actions/increment-version
+        with:
+          release-version: "${{ steps.check_title.outputs.release_version }}"  # X.Y
+
+      - name: 📣 Comment link on the PR
+        if: steps.check_title.outputs.skip != 'true'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const releaseUrl = "${{ steps.create_github_release.outputs.url }}";
+            const body = `🚀 Release created: ${releaseUrl}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body
+            });
+
+      - name: ⤴️ Upload sdist to GitHub Release
+        if: steps.check_title.outputs.skip != 'true'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: "v${{ steps.check_title.outputs.version }}"
+          files: dist/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

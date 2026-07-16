@@ -1,0 +1,384 @@
+{
+  "system-info": {
+    "sections": {
+      "report": {
+        "label": "System feature report"
+      },
+      "hardware": {
+        "label": "System hardware"
+      },
+      "system": {
+        "label": "System Information"
+      },
+      "bios": {
+        "label": "BIOS Information"
+      },
+      "memory": {
+        "label": "Memory"
+      },
+      "os": {
+        "label": "OS configuration"
+      },
+      "performance": {
+        "label": "Performance features"
+      },
+      "bpf": {
+        "label": "eBPF"
+      },
+      "advice": {
+        "label": "Advice",
+        "description": "Recommended actions that can improve performance tooling observability."
+      },
+      "vulnerabilities": {
+        "label": "Vulnerabilities"
+      },
+      "kernel_config": {
+        "label": "Kernel configuration",
+        "description": "Kernel configuration settings collected when requested."
+      }
+    },
+    "report.collected_time": {
+      "label": "Collected",
+      "section": "report",
+      "description": "Timestamp when ASCT collected the system information."
+    },
+    "report.asct_ver": {
+      "label": "ASCT version",
+      "section": "report",
+      "description": "Version of ASCT used to collect the report."
+    },
+    "report.run_as_root": {
+      "label": "Running as root",
+      "section": "report",
+      "description": "Whether ASCT was run with root privileges."
+    },
+    "sys_hw.arch": {
+      "label": "Architecture",
+      "section": "hardware",
+      "description": "Processor architecture reported by the operating system."
+    },
+    "sys_hw.n_cpus": {
+      "label": "CPUs",
+      "section": "hardware",
+      "description": "Number of logical CPUs visible to the operating system.",
+      "unit": "count"
+    },
+    "sys_hw.cpu_type": {
+      "label": "CPU types",
+      "section": "hardware",
+      "description": "CPU type summary grouped by detected CPU implementation."
+    },
+    "sys_hw.cpu_features": {
+      "label": "CPU features",
+      "section": "hardware",
+      "description": "CPU feature flags reported by the operating system."
+    },
+    "sys_hw.cache_info": {
+      "label": "Cache info",
+      "section": "hardware",
+      "description": "Summary of detected CPU cache configuration."
+    },
+    "sys_hw.cache_line_size": {
+      "label": "Cache line size",
+      "section": "hardware",
+      "description": "Detected cache line size.",
+      "unit": "bytes"
+    },
+    "sys_hw.cache_size_dict": {
+      "label": "Cache sizes",
+      "section": "hardware",
+      "description": "Detected data cache sizes by cache level.",
+      "unit": "bytes"
+    },
+    "sys_hw.caches": {
+      "label": "Caches",
+      "section": "hardware",
+      "description": "Detected cache instances grouped by cache description."
+    },
+    "sys_hw.atomics": {
+      "label": "Atomic operations",
+      "section": "hardware",
+      "description": "Whether the system supports atomic operations."
+    },
+    "sys_hw.interconnect": {
+      "label": "Interconnect",
+      "section": "hardware",
+      "description": "Detected system interconnect type and count."
+    },
+    "sys_hw.n_numa_nodes": {
+      "label": "NUMA nodes",
+      "section": "hardware",
+      "description": "Number of NUMA nodes visible to the operating system.",
+      "unit": "count"
+    },
+    "sys_hw.numa_nodes": {
+      "label": "NUMA node details",
+      "section": "hardware",
+      "description": "Memory size and CPU list for each NUMA node."
+    },
+    "sys_hw.numa_kern_cfg": {
+      "label": "NUMA kernel configuration",
+      "section": "hardware",
+      "description": "Whether kernel NUMA support is configured."
+    },
+    "sys_hw.sockets": {
+      "label": "Sockets",
+      "section": "hardware",
+      "description": "Number of physical CPU packages detected.",
+      "unit": "count"
+    },
+    "sys_info.manufacturer": {
+      "label": "Manufacturer",
+      "section": "system",
+      "description": "System manufacturer reported by DMI."
+    },
+    "sys_info.product_name": {
+      "label": "Product Name",
+      "section": "system",
+      "description": "System product name reported by DMI."
+    },
+    "sys_info.version": {
+      "label": "Version",
+      "section": "system",
+      "description": "System version reported by DMI."
+    },
+    "sys_info.serial": {
+      "label": "Serial",
+      "section": "system",
+      "description": "System serial number reported by DMI."
+    },
+    "sys_info.uuid": {
+      "label": "UUID",
+      "section": "system",
+      "description": "System UUID reported by DMI."
+    },
+    "bios_info.vendor": {
+      "label": "Vendor",
+      "section": "bios",
+      "description": "BIOS vendor reported by DMI."
+    },
+    "bios_info.version": {
+      "label": "Version",
+      "section": "bios",
+      "description": "BIOS version reported by DMI."
+    },
+    "bios_info.release_date": {
+      "label": "Release Date",
+      "section": "bios",
+      "description": "BIOS release date reported by DMI."
+    },
+    "memory.total_size": {
+      "label": "System memory",
+      "section": "memory",
+      "description": "Total physical memory reported by the operating system.",
+      "unit": "bytes",
+      "display_unit": "B"
+    },
+    "memory.n_channels": {
+      "label": "# of channels",
+      "section": "memory",
+      "description": "Number of memory channels inferred from DMI.",
+      "unit": "count"
+    },
+    "memory.type_str": {
+      "label": "Type",
+      "section": "memory",
+      "description": "Memory type reported by DMI."
+    },
+    "memory.manufacturer": {
+      "label": "Manufacturer",
+      "section": "memory",
+      "description": "Memory manufacturer reported by DMI."
+    },
+    "memory.part_number": {
+      "label": "Part Number",
+      "section": "memory",
+      "description": "Memory part number reported by DMI."
+    },
+    "memory.speed": {
+      "label": "Speed",
+      "section": "memory",
+      "description": "Configured memory speed reported by DMI.",
+      "unit": "MT/s"
+    },
+    "memory.data_width": {
+      "label": "Data Width",
+      "section": "memory",
+      "description": "Memory data width reported by DMI.",
+      "unit": "bits"
+    },
+    "memory.peak_theoretical_bw": {
+      "label": "Peak bandwidth",
+      "section": "memory",
+      "description": "Theoretical peak memory bandwidth calculated from DMI memory width, speed, and channel count.",
+      "unit": "bytes/s",
+      "display_unit": "B/s"
+    },
+    "kern_cfg.ver": {
+      "label": "Kernel",
+      "section": "os",
+      "description": "Kernel version reported by the operating system."
+    },
+    "kern_cfg.cfg_file": {
+      "label": "Config",
+      "section": "os",
+      "description": "Kernel configuration file used for feature checks."
+    },
+    "kern_cfg.build_dir": {
+      "label": "Build dir",
+      "section": "os",
+      "description": "Kernel build directory, if available."
+    },
+    "kern_cfg.uses_atomics": {
+      "label": "Uses atomics",
+      "section": "os",
+      "description": "Whether the kernel is configured to use atomic operations."
+    },
+    "kern_cfg.huge_pages": {
+      "label": "Huge pages",
+      "section": "os",
+      "description": "Huge page configuration summary."
+    },
+    "kern_cfg.thp": {
+      "label": "Transparent HP",
+      "section": "os",
+      "description": "Transparent huge page configuration."
+    },
+    "kern_cfg.mpam": {
+      "label": "MPAM configured",
+      "section": "os",
+      "description": "Whether MPAM support is detected."
+    },
+    "kern_cfg.resctrl": {
+      "label": "resctrl",
+      "section": "os",
+      "description": "Whether resctrl support is detected."
+    },
+    "kern_cfg.distro": {
+      "label": "Distribution",
+      "section": "os",
+      "description": "Operating system distribution."
+    },
+    "kern_cfg.libc_ver": {
+      "label": "libc version",
+      "section": "os",
+      "description": "Detected libc version."
+    },
+    "kern_cfg.boot_info": {
+      "label": "Boot info",
+      "section": "os",
+      "description": "Boot firmware information."
+    },
+    "kern_cfg.kpti": {
+      "label": "KPTI enforced",
+      "section": "os",
+      "description": "Whether kernel page table isolation is enforced."
+    },
+    "kern_cfg.lockdown": {
+      "label": "Lockdown",
+      "section": "os",
+      "description": "Kernel lockdown mode."
+    },
+    "kern_cfg.mitigations": {
+      "label": "Mitigations",
+      "section": "os",
+      "description": "CPU vulnerability mitigation summary."
+    },
+    "perf_feats.has_tools": {
+      "label": "perf tools",
+      "section": "performance",
+      "description": "Whether perf tools are installed."
+    },
+    "perf_feats.perf_dir": {
+      "label": "perf installed at",
+      "section": "performance",
+      "description": "Path to the perf binary."
+    },
+    "perf_feats.perf_opencsd": {
+      "label": "perf with OpenCSD",
+      "section": "performance",
+      "description": "Whether perf has OpenCSD support."
+    },
+    "perf_feats.n_counters": {
+      "label": "perf counters",
+      "section": "performance",
+      "description": "Number of available hardware performance counters.",
+      "unit": "count"
+    },
+    "perf_feats.perf_sampling": {
+      "label": "perf sampling",
+      "section": "performance",
+      "description": "Non-invasive perf sampling support."
+    },
+    "perf_feats.perf_hw_trace": {
+      "label": "perf HW trace",
+      "section": "performance",
+      "description": "Hardware trace support available through perf."
+    },
+    "perf_feats.paranoid": {
+      "label": "perf paranoid",
+      "section": "performance",
+      "description": "Value of the kernel perf_event_paranoid setting."
+    },
+    "perf_feats.kptr_restrict": {
+      "label": "kptr_restrict",
+      "section": "performance",
+      "description": "Value of the kernel kptr_restrict setting."
+    },
+    "perf_feats.userspace_access": {
+      "label": "perf in userspace",
+      "section": "performance",
+      "description": "Whether userspace access to performance counters is enabled."
+    },
+    "perf_feats.interconnect": {
+      "label": "interconnect perf",
+      "section": "performance",
+      "description": "Whether interconnect performance monitoring is available."
+    },
+    "perf_feats.kcore": {
+      "label": "/proc/kcore",
+      "section": "performance",
+      "description": "Whether /proc/kcore is available."
+    },
+    "perf_feats.devmem": {
+      "label": "/dev/mem",
+      "section": "performance",
+      "description": "Whether /dev/mem is available."
+    },
+    "perf_feats.bpf.bpf": {
+      "label": "kernel configured for BPF",
+      "section": "bpf",
+      "description": "Whether the kernel is configured for BPF."
+    },
+    "perf_feats.bpf.bpf_tool": {
+      "label": "bpftool installed",
+      "section": "bpf",
+      "description": "Whether bpftool is installed."
+    },
+    "perf_feats.bpf.bpf_tool_ver": {
+      "label": "bpftool version",
+      "section": "bpf",
+      "description": "Installed bpftool version."
+    },
+    "perf_feats.bpf.bpftrace": {
+      "label": "bpftrace installed",
+      "section": "bpf",
+      "description": "Whether bpftrace is installed."
+    },
+    "advice": {
+      "label": "Advice",
+      "section": "advice",
+      "description": "Recommended actions that can improve performance tooling observability."
+    },
+    "vulnerabilities": {
+      "label": "Vulnerabilities",
+      "section": "vulnerabilities",
+      "description": "CPU vulnerability information reported by the operating system."
+    },
+    "kernel_config": {
+      "label": "Kernel configuration",
+      "section": "kernel_config",
+      "description": "Kernel configuration settings collected when requested."
+    }
+  }
+}

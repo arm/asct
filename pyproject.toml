@@ -1,0 +1,142 @@
+# ---------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: Copyright (C) 2026 Arm Limited and/or its affiliates
+# SPDX-FileCopyrightText: <open-source-office@arm.com>
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+# ---------------------------------------------------------------------------------
+[build-system]
+requires = ["setuptools>=82.0.1", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "asct"
+description = "Arm System Characterization Tool"
+license = "Apache-2.0"
+license-files = ["license_terms/license_agreement.txt", "license_terms/third_party_licenses.txt"]
+readme = { file = "README.md", content-type = "text/markdown" }
+dynamic = ["version", "dependencies"]
+requires-python = ">=3.10"
+classifiers = [
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: C",
+  "Operating System :: POSIX :: Linux"
+]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+
+[tool.pytest.ini_options]
+addopts  = [
+    "--doctest-modules",
+    "--junitxml=test-results/junit_report.xml",
+]
+testpaths = [
+    "tests",
+    "src",
+]
+norecursedirs = [
+    "extern",  # don't try to import and scan for doctests in extern
+]
+
+[tool.ruff]
+target-version = "py310"
+output-format = "github"
+line-length = 120
+preview = true
+extend-include = [
+    "src/asct"
+]
+exclude = [
+    "extern",
+]
+
+[tool.ruff.lint]
+ignore = [
+    "COM812",  # leave it up to ruff format to decide when to add trailing commas
+
+    # https://github.com/Arm-Debug/asct/issues/48 - enable S404, S603
+    "S404", "S603", # dodgy use of subprocess
+    "PLW2901",  # for loop variable overwritten by assignment              (count: 5)
+    "PLW1514",  # 'open' in text mode without explicit encoding argument   (count: 20)
+
+    ## below here are new warnings from upgrading ruff from 0.14.10 to 0.15.16, which we haven't yet had time to investigate and fix, so ignore for now.
+    "I001",
+    "UP010",
+    "UP024",
+    "UP032",
+    "UP034",
+    "UP035",
+    "UP045",  # Use X | None for type annotations
+    "PLW0717",  # Try clause contains too many statements  -- TODO resolve this in ASCT-590
+]
+
+extend-select = [
+    "E",     # https://docs.astral.sh/ruff/rules/#error-e
+    "W",     # https://docs.astral.sh/ruff/rules/#warning-w
+    "PLC",   # https://docs.astral.sh/ruff/rules/#convention-plc
+    "PLE",   # https://docs.astral.sh/ruff/rules/#error-ple
+    "PERF",  # https://docs.astral.sh/ruff/rules/#perflint-perf
+    "I",     # https://docs.astral.sh/ruff/rules/#isort-i
+    "F",     # https://docs.astral.sh/ruff/rules/#pyflakes-f
+    "S",     # https://docs.astral.sh/ruff/rules/#flake8-bandit-s
+    "B",     # https://docs.astral.sh/ruff/rules/#flake8-bugbear-b
+    "A",     # https://docs.astral.sh/ruff/rules/#flake8-builtins-a
+    "COM",   # https://docs.astral.sh/ruff/rules/#flake8-commas-com
+    "TC",    # https://docs.astral.sh/ruff/rules/#flake8-type-checking-tc
+    "TID",   # https://docs.astral.sh/ruff/rules/#flake8-tidy-imports-tid
+    "EXE",   # https://docs.astral.sh/ruff/rules/#flake8-executable-exe
+    "CPY",   # https://docs.astral.sh/ruff/rules/#flake8-copyright-cpy
+    "Q",     # https://docs.astral.sh/ruff/rules/#flake8-quotes-q
+    "ARG",   # https://docs.astral.sh/ruff/rules/#flake8-unused-arguments-arg
+    "E501",  # https://docs.astral.sh/ruff/rules/line-too-long/
+    "RET",   # https://docs.astral.sh/ruff/rules/#flake8-return-ret
+    "RUF",   # https://docs.astral.sh/ruff/rules/#ruff-specific-rules-ruf
+    "PLW",  # https://docs.astral.sh/ruff/rules/#warning-plw
+
+# Full list of rules: https://docs.astral.sh/ruff/rules/
+# Selected rules we may want to apply over time.
+#    "ANN",  # https://docs.astral.sh/ruff/rules/#flake8-annotations-ann
+#    "TD",   # https://docs.astral.sh/ruff/rules/#flake8-todos-td
+#    "FIX",  # https://docs.astral.sh/ruff/rules/#flake8-fixme-fix
+#   "PTH",  # https://docs.astral.sh/ruff/rules/#flake8-use-pathlib-pth
+]
+
+[tool.ruff.lint.per-file-ignores]
+# S101 warns against the use of 'assert'. But our pytest tests intentionally use 'assert', so allow them in that directory.
+"tests/*" = ["S101"]
+# N999 warns against invalid package names such as 'cmn-tools'. We should rename that module (though the obvious cmn_tools name is already taken)
+"src/lib/cmn-tools/*" = ["N999"]
+
+# Copyright Header Check
+# BEGIN AUTO-GENERATED RUFF COPYRIGHT
+[tool.ruff.lint.flake8-copyright]
+notice-rgx = '''(?ms)^# ---------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: Copyright \(C\) (?:20\d{2}-2026|2026) Arm Limited and/or its affiliates
+# SPDX-FileCopyrightText: <open-source-office@arm\.com>
+# SPDX-License-Identifier: Apache-2\.0
+#
+# Licensed under the Apache License, Version 2\.0 \(the "License"\); you may not
+# use this file except in compliance with the License\. You may obtain a copy
+# of the License at
+#
+# http://www\.apache\.org/licenses/LICENSE-2\.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied\. See the
+# License for the specific language governing permissions and limitations
+# under the License\.
+# ---------------------------------------------------------------------------------'''
+# END AUTO-GENERATED RUFF COPYRIGHT

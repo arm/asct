@@ -1,0 +1,143 @@
+{
+  "registers": {
+    "MIDR_EL1": {
+      "fields": [
+        {
+          "name": "RES0_63_32",
+          "msb": 63,
+          "lsb": 32,
+          "reserved": true,
+          "reset": 0
+        },
+        {
+          "name": "IMPLEMENTER",
+          "msb": 31,
+          "lsb": 24,
+          "reset": 0,
+          "values": {
+            "0x00": "Reserved for software use",
+            "0x41": "Arm Limited",
+            "0x42": "Broadcom Corporation",
+            "0x43": "Cavium Inc.",
+            "0x44": "Digital Equipment Corporation",
+            "0x46": "Fujitsu Ltd.",
+            "0x49": "Infineon Technologies AG",
+            "0x4D": "Motorola or Freescale Semiconductor Inc.",
+            "0x4E": "NVIDIA Corporation",
+            "0x50": "Applied Micro Circuits Corporation",
+            "0x51": "Qualcomm Inc.",
+            "0x56": "Marvell International Ltd.",
+            "0x69": "Intel Corporation",
+            "0xC0": "Ampere Computing"
+          }
+        },
+        {
+          "name": "VARIANT",
+          "msb": 23,
+          "lsb": 20,
+          "reset": 0
+        },
+        {
+          "name": "ARCHITECTURE",
+          "msb": 19,
+          "lsb": 16,
+          "reset": 0,
+          "values": {
+            "0x1": "Armv4",
+            "0x2": "Armv4T",
+            "0x3": "Armv5 (obsolete)",
+            "0x4": "Armv5T",
+            "0x5": "Armv5TE",
+            "0x6": "Armv5TEJ",
+            "0x7": "Armv6",
+            "0xF": "Features individually identified in ID_* registers"
+          }
+        },
+        {
+          "name": "PARTNUM",
+          "msb": 15,
+          "lsb": 4,
+          "reset": 0,
+          "values": {
+            "0xD4F": "V2"
+          }
+        },
+        {
+          "name": "REVISION",
+          "msb": 3,
+          "lsb": 0,
+          "reset": 0
+        }
+      ]
+    },
+    "MPIDR_EL1": {
+      "fields": [
+        {
+          "name": "RES0_63_40",
+          "msb": 63,
+          "lsb": 40,
+          "reserved": true,
+          "reset": 0
+        },
+        {
+          "name": "AFF3",
+          "msb": 39,
+          "lsb": 32,
+          "reset": 0
+        },
+        {
+          "name": "RES1_31_31",
+          "msb": 31,
+          "lsb": 31,
+          "reserved": true,
+          "reset": 1
+        },
+        {
+          "name": "U",
+          "msb": 30,
+          "lsb": 30,
+          "reset": 0,
+          "values": {
+            "0x0": "Processor is part of a multiprocessor system",
+            "0x1": "Processor is part of a uniprocessor system"
+          }
+        },
+        {
+          "name": "RES0_29_25",
+          "msb": 29,
+          "lsb": 25,
+          "reserved": true,
+          "reset": 0
+        },
+        {
+          "name": "MT",
+          "msb": 24,
+          "lsb": 24,
+          "reset": 0,
+          "values": {
+            "0x0": "Independent performance between PEs (no interdependence)",
+            "0x1": "Interdependent performance between PEs (multithreaded-like)"
+          }
+        },
+        {
+          "name": "AFF2",
+          "msb": 23,
+          "lsb": 16,
+          "reset": 0
+        },
+        {
+          "name": "AFF1",
+          "msb": 15,
+          "lsb": 8,
+          "reset": 0
+        },
+        {
+          "name": "AFF0",
+          "msb": 7,
+          "lsb": 0,
+          "reset": 0
+        }
+      ]
+    }
+  }
+}

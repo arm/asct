@@ -1,0 +1,30 @@
+{
+    "benchmarks": {
+        "load_latency": {
+            "folder": "extern/infra-microbenchmarks/loaded-latency",
+            "probe_version": {
+                "binary": "loaded-latency-asct-probe.bin",
+                "cflags": "-DASCT -DUSE_PROBE -I${DIETPERF_DIR}",
+                "ldflags": ""
+            },
+            "no_probe_version": {
+                "binary": "loaded-latency-asct.bin",
+                "cflags": "-DASCT",
+                "ldflags": ""
+            }
+        },
+        "core_to_core_latency": {
+            "folder": "extern/core-to-core/pingpong",
+            "probe_version": {
+                "binary": "ping-pong-asct-probe.bin",
+                "cflags": "-DASCT -DUSE_PROBE -I${DIETPERF_DIR}",
+                "ldflags": ""
+            },
+            "no_probe_version": {
+                "binary": "ping-pong-asct.bin",
+                "cflags": "-DASCT",
+                "ldflags": ""
+            }
+        }
+    }
+}

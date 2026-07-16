@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText = "Copyright (C) 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>"
+# SPDX-License-Identifier = "Apache-2.0"
+version = 1
+
+# Version file is imported directly to build/release  scripts, so don't annotate it in-text
+[[annotations]]
+path = ["VERSION", "THIRD-PARTY-LICENSES"]
+SPDX-FileCopyrightText = "Copyright (C) 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>"
+SPDX-License-Identifier = "Apache-2.0"
+
+# Track ossmosis json files for open-source export
+[[annotations]]
+path = [".ossmosis.json", ".ossmosis-export.json"]
+SPDX-FileCopyrightText = "Copyright (C) 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>"
+SPDX-License-Identifier = "Apache-2.0"
+
+# Annotate all .png files in docs/resources with Apache 2.0
+[[annotations]]
+path = "docs/resources/**/*.png"
+SPDX-FileCopyrightText = "Copyright (C) 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>"
+SPDX-License-Identifier = "Apache-2.0"
+
+# Mark cmn-tools as Apache-2.0
+[[annotations]]
+path = ["extern/cmn-tools/*",
+        "extern/cmn-tools/data/**/*",
+        "extern/cmn-tools/src/*.py",
+        "extern/cmn-tools/docs/*.md",
+        "extern/cmn-tools/data/events/*.csv"]
+SPDX-FileCopyrightText = "Copyright (C) 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>"
+SPDX-License-Identifier = "Apache-2.0"
+
+# Mark core-to-core as Apache-2.0
+[[annotations]]
+path = "extern/core-to-core/pingpong/**/*"
+SPDX-FileCopyrightText = "Copyright (C) 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>"
+SPDX-License-Identifier = "Apache-2.0"
+
+# Mark dietperf justfile as Apache-2.0
+[[annotations]]
+path = "extern/dietperf/justfile"
+SPDX-FileCopyrightText = "Copyright (C) 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>"
+SPDX-License-Identifier = "Apache-2.0"
+
+
+
+# Annotate extern/infra-microbenchmarks with BSD-3 to align with loaded-latency
+[[annotations]]
+path = ["extern/infra-microbenchmarks/*", "extern/infra-microbenchmarks.VERSION", "extern/infra-microbenchmarks/loaded-latency/*"]
+SPDX-FileCopyrightText = "Copyright (C) 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>"
+SPDX-License-Identifier = "BSD-3-Clause"
+
