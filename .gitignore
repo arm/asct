@@ -1,0 +1,68 @@
+# SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+#
+**/__pycache__/
+# pip install generated files
+*.egg-info/
+*.eggs/
+*.egg/
+*.whl
+*.dist-info/
+
+# Ignore build directories
+build/
+devel/
+dist/
+
+# Ignore documentation build directories
+asct_docs/
+asct_docs.zip
+
+# Ignore tmp directories
+tmp/
+
+# Ignore file open in editor
+*.swp
+
+# Ignore generated Excel files
+*.xlsx
+*.xls
+
+# Ignore generated CSV files
+*.csv
+# allow CSV files in cmn-tools/events
+!**/cmn-tools/events/*.csv
+!**/cmn-tools/data/events/*.csv
+
+# Ignore venv directories
+.venv/
+asct_venv/
+uv.lock
+
+# Ignore generated object files
+*.o
+
+# Ignore output data dirs
+data.*/
+
+# Ignore generated library files
+*.so
+*.so.*
+*.a
+
+# Ignore generated binary executable files
+*.bin
+.coverage
+.tox
+test-results
+coverage.xml
+.vscode
+
+# Aida config (Tech Comms AI tool) — machine-specific, do not commit
+/.vscode/settings.json
+/.aida-setup.json
+/.spectral.yaml
+/asct-context
+src/extern/**

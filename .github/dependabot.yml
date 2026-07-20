@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+version: 2
+updates:
+  # Maintain dependencies for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      all:
+        applies-to: version-updates
+        update-types:
+          - major
+          - minor
+          - patch
+
+  # Maintain dependencies for Python Package
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      all:
+        applies-to: version-updates
+        update-types:
+          - major
+          - minor
+          - patch

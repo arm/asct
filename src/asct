@@ -1,0 +1,638 @@
+#!/usr/bin/env python
+# ---------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: Copyright (C) 2025-2026 Arm Limited and/or its affiliates
+# SPDX-FileCopyrightText: <open-source-office@arm.com>
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+# ---------------------------------------------------------------------------------
+
+import argparse
+import sys
+from os import path
+
+from collections import deque
+from datetime import datetime, timezone
+from importlib import import_module
+
+from asct.core import constants
+import asct.core.logger as log
+
+from asct.core.asct_env import ASCTGlobalSettings as AGS, ProcessWatcher, SystemState
+from asct.core.recipes.configuration.metadata import (
+    get_all_run_tags,
+    get_all_report_tags,
+    TAG_DEFAULT,
+    TAG_ALL,
+    ASCT_RUN_RECIPE_METADATA,
+    ASCT_REPORT_RECIPE_METADATA,
+)
+from asct.core.cmd.helpers.version_helpers import get_version
+from asct.core.cmd.helpers.help_helpers import (
+    ASCTCustomHelpFormatter,
+    ASCTCommandHelpAction,
+    ASCTParser,
+    get_formatted_benchmark_str,
+)
+from asct.core.resources.output_folder import OutputFolder
+from asct.core.managers.resource_manager import ResourceManager
+from asct.core.term_ui.term_manager import TermManager
+from asct.core.utility.misc import create_dict_path
+from asct.core.cache import ASCTCache
+
+
+def initialize_asct(args):
+    output_dir = getattr(args, "output_dir", None)
+    if output_dir is None and getattr(args, "command", None) == "resume":
+        output_dir = getattr(args, "run_dir", None)
+        if output_dir is not None:
+            args.output_dir = output_dir
+
+    quiet = getattr(args, "quiet", False)
+    log_file = getattr(args, "log_file", None)
+
+    TermManager().initialize(sys.stderr)
+
+    # ResourceManager follows the singleton pattern, for this reason
+    # only one instance is used throughout the application
+    log_config = log.LogConfigurator()
+
+    log_level = getattr(args, "log_level", None)
+    log_level_console = getattr(args, "log_level_console", None)
+    log_level_file = getattr(args, "log_level_file", None)
+
+    if log_level:
+        log_level_console, log_level_file = log_level, log_level
+
+    if log_level_console:
+        log_config.configure_console_logging(not quiet, log_level_console).apply()
+
+    if output_dir:
+        resource_manager = ResourceManager()
+        if getattr(args, "command", None) == "resume":
+            if not path.isdir(output_dir):
+                log.error(f"Specified run directory '{output_dir}' does not exist")
+                sys.exit(1)
+            args.output_dir_path = output_dir
+        else:
+            output_folder_resource = OutputFolder(output_dir, getattr(args, "force", False))
+            resource_manager.register(output_folder_resource, global_scope=True)
+            try:
+                resource_manager.apply_all(global_scope=True)
+            except (RuntimeError, ValueError, OSError) as exc:
+                log.error(f"Unable to create output directory: {exc}")
+                sys.exit(1)
+            args.output_dir_path = output_folder_resource.get_output_folder_path()
+
+        # by default write logs to output/asct.log based on current log level
+        # quiet flag gives the user the option to turn off logging to file as well
+        if log_file is None and not quiet:
+            args.log_file = path.join(args.output_dir_path, "asct.log")
+        log_config.configure_file_logging(bool(args.log_file), log_level_file, args.log_file).apply()
+
+    AGS().read_env_vars()
+    ProcessWatcher().initialize()
+
+    try:
+        SystemState().initialize()
+    except (RuntimeError, ValueError, OSError) as exc:
+        log.critical(f"{exc}")
+        sys.exit(1)
+
+    # ensure that cache is not used in dev mode
+    if getattr(args, "dev_mode", False):
+        args.no_cache = True
+
+    cache = ASCTCache(
+        use_cache=not getattr(args, "no_cache", False), output_folder=getattr(args, "output_dir_path", "./")
+    )
+    cache.clear_asct_cache(invalidate=getattr(args, "clear_cache", False))
+
+
+def exec_cmd(command, args):
+    initialize_asct(args)
+
+    module = import_module(f"asct.core.cmd.{command}")
+    module.run(args)
+
+
+def exec_cmd_version(args):
+    exec_cmd("version", args)
+
+
+def exec_cmd_help(args):
+    exec_cmd("asct_help", args)
+
+
+def exec_cmd_list_benchmarks(args):
+    exec_cmd("list_benchmarks", args)
+
+
+def exec_cmd_run(args):
+    exec_cmd("run", args)
+
+
+def exec_cmd_resume(args):
+    module = import_module("asct.core.cmd.resume")
+    try:
+        module.load_asct_run_args(args)
+    except (RuntimeError, TypeError) as exc:
+        print(str(exc), file=sys.stderr)
+        sys.exit(1)
+
+    args.output_dir = args.run_dir
+    args.force = True
+    initialize_asct(args)
+    module.run(args)
+
+
+def exec_cmd_diff(args):
+    exec_cmd("diff", args)
+
+
+def exec_cmd_report(args):
+    exec_cmd("report", args)
+
+
+def exec_cmd_view(args):
+    run_dir = args.run_dir
+    if not path.isdir(run_dir):
+        print(f"Specified run directory '{run_dir}' does not exist", file=sys.stderr)
+        sys.exit(1)
+
+    if getattr(args, "format", None) is None:
+        args.format = "stdout"
+    if not hasattr(args, "verbose"):
+        args.verbose = False
+
+    args.output_dir_path = run_dir
+    args.force = True
+
+    initialize_asct(args)
+
+    module = import_module("asct.core.cmd.view")
+    module.run(args)
+
+
+def exec_cmd_config_write_default(args):
+    initialize_asct(args)
+
+    module = import_module("asct.core.cmd.config")
+    module.write_default(args)
+
+
+def exec_cmd_config_check(args):
+    initialize_asct(args)
+
+    module = import_module("asct.core.cmd.config")
+    module.check(args)
+
+
+class ASCTHelpAction(argparse.Action):
+    def __call__(self, parser, namespace, *_):
+        namespace.parser = parser
+        exec_cmd("asct_help", namespace)
+        parser.exit(0)
+
+
+class ASCTSettingsAction(argparse.Action):
+    def __call__(self, parser, namespace, values, _=None):
+        values_dict = getattr(namespace, self.dest, None)
+        if values_dict is None:
+            values_dict = {}
+        elif not isinstance(values_dict, dict):
+            parser.error(f"{self.dest} must be a dict, got {type(values_dict).__name__}")
+
+        process_queue = deque(values)
+        while process_queue:
+            item = process_queue.popleft()
+            # no "=" means it's a boolean flag, set it to True
+            if "=" not in item:
+                key = item
+                value = True
+            else:
+                key, value = item.split("=", 1)
+            create_dict_path(values_dict, key.split("."), value)
+
+        setattr(namespace, self.dest, values_dict)
+
+
+def main():
+    parser = ASCTParser(
+        description=f"ASCT: Arm System Characterization Tool (version: {get_version()})",
+        add_help=False,
+        usage="%(prog)s command [command_args…]",
+        prog="asct",
+        formatter_class=ASCTCustomHelpFormatter,
+    )
+
+    parser.add_argument(
+        "-h",
+        "--help",
+        action=ASCTHelpAction,
+        nargs=0,
+        help=argparse.SUPPRESS,
+    )
+
+    commands = parser.add_subparsers(dest="command", title=None, metavar="ASCT commands", required=True)
+
+    # common args for commands that do not produce any file output
+    common_no_wr_args = argparse.ArgumentParser(add_help=False)
+
+    common_no_wr_args.add_argument(
+        "--log-level",
+        "-L",
+        choices=log.get_log_levels(),
+        type=str.lower,
+        default="",
+        help=f"Logging level for both file and console logging (defaults: console: {log.DEFAULT_LOG_LEVEL_CONSOLE}"
+        f" file: {log.DEFAULT_LOG_LEVEL_FILE})",
+        metavar=f"[{','.join(map(str, log.get_log_levels()))}]",
+    )
+
+    common_no_wr_args.add_argument(
+        "--log-level-console",
+        choices=log.get_log_levels(),
+        type=str.lower,
+        default=log.DEFAULT_LOG_LEVEL_CONSOLE,
+        help=f"Logging level for console logging (default: {log.DEFAULT_LOG_LEVEL_CONSOLE})",
+        metavar=f"[{','.join(map(str, log.get_log_levels()))}]",
+    )
+
+    common_no_wr_args.add_argument(
+        "--log-level-file",
+        choices=log.get_log_levels(),
+        type=str.lower,
+        default=log.DEFAULT_LOG_LEVEL_FILE,
+        help=f"Logging level for file logging (default: {log.DEFAULT_LOG_LEVEL_FILE})",
+        metavar=f"[{','.join(map(str, log.get_log_levels()))}]",
+    )
+
+    # common args for commands that produce file output
+    common_wr_args = argparse.ArgumentParser(add_help=False)
+    common_wr_args.add_argument(
+        "--log-file",
+        type=str,
+        default=None,
+        help="File to output logging messages (default: asct.log)",
+    )
+    common_wr_args.add_argument(
+        "--format",
+        "-f",
+        choices=constants.FORMAT_OPTIONS,
+        type=str.lower,
+        default="stdout",
+        help="Output format (default: stdout)",
+        metavar=f"[{','.join(map(str, constants.FORMAT_OPTIONS))}]",
+    )
+    common_wr_args.add_argument(
+        "--output-dir",
+        "-o",
+        type=str,
+        default=f"data.{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S_%f')}",
+        help="Path to the output directory (default: 'data.<YYYYMMDD_HHMMSS_microseconds>' in cwd)",
+    )
+    common_wr_args.add_argument(
+        "--force", action="store_true", default=False, help="Reuse the output directory if it exists"
+    )
+    common_wr_args.add_argument(
+        "--quiet",
+        "-q",
+        action="store_true",
+        help="Disable default logging to the asct.log file, and all output to stdout/stderr,"
+        " including critical errors and log messages. Use --log-file to capture and view logs.",
+    )
+
+    # common args for commands that produce file output
+    common_cache_args = argparse.ArgumentParser(add_help=False)
+    common_cache_args.add_argument(
+        "--no-cache",
+        action="store_true",
+        default=False,
+        help="Disable the use of cached benchmark data",
+    )
+
+    common_cache_args.add_argument(
+        "--clear-cache",
+        action="store_true",
+        default=False,
+        help="Clear the cached benchmark data",
+    )
+
+    common_run_report_args = argparse.ArgumentParser(add_help=False)
+
+    common_run_report_args.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose output for benchmark execution and reporting",
+    )
+
+    common_run_report_args.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print a list of benchmarks that would run based on the provided "
+        "command line arguments and exits immediately",
+    )
+
+    common_run_report_args.add_argument(
+        "--update-config",
+        nargs="+",
+        action=ASCTSettingsAction,
+        metavar="SETTING=VALUE",
+        default=None,
+        help="Set benchmark user-defined settings",
+    )
+
+    common_run_report_args.add_argument(
+        "--config-file",
+        default="",
+        help="Read benchmark user-defined settings from a given JSON file",
+    )
+
+    # 'run' command
+    run_cmd = commands.add_parser(
+        "run",
+        usage="asct run keyword1 keyword2... [options...]",
+        parents=[common_no_wr_args, common_wr_args, common_cache_args, common_run_report_args],
+        help="Run a list of benchmarks based on a provided list of keywords",
+        description="Run a list of benchmark based on a provided list of keywords and outputs "
+        "the results in a chosen format. Keywords can be negated using the ^ character.",
+        epilog=f"\nbenchmarks:\n{get_formatted_benchmark_str(True, ASCT_RUN_RECIPE_METADATA)}"
+        "\n\nexamples:\n  asct run all\n  asct run latency bandwidth ^sweep --format json --output-dir my_dir\n"
+        "  asct run idle-latency peak-bandwidth --format csv",
+        formatter_class=ASCTCustomHelpFormatter,
+    )
+
+    # 'help' command
+    help_cmd = commands.add_parser(
+        "help",
+        usage="asct help [command]",
+        help="Display the general help page or the help page for a specified command",
+        description="Display the general help page or the help page for a specified command.",
+        epilog="examples:\n  asct help\n  asct help list",
+        formatter_class=ASCTCustomHelpFormatter,
+    )
+    help_cmd.add_argument("cmd", nargs="?", default=None, action=ASCTCommandHelpAction, help=argparse.SUPPRESS)
+    help_cmd.set_defaults(func=exec_cmd_help, parser=parser, subcommands=commands)
+
+    # 'version' command
+    version_cmd = commands.add_parser(
+        "version",
+        usage="asct version [-h]",
+        help="Print version number",
+        description="Print version information for the tool",
+        epilog="example:\n  asct version",
+        formatter_class=ASCTCustomHelpFormatter,
+    )
+    version_cmd.set_defaults(func=exec_cmd_version)
+
+    # 'list' command
+    list_bm_cmd = commands.add_parser(
+        "list",
+        usage="asct list [options...]",
+        parents=[common_no_wr_args, common_wr_args],
+        help="Get a list of available benchmarks",
+        description="Output a list of available benchmarks and their description.",
+        epilog="examples:\n  asct list\n  asct list --format json --output-dir my_dir",
+        formatter_class=ASCTCustomHelpFormatter,
+    )
+    list_bm_cmd.set_defaults(func=exec_cmd_list_benchmarks)
+
+    run_cmd.add_argument(
+        "benchmarks",
+        nargs="*",
+        default=TAG_DEFAULT,
+        choices=get_all_run_tags(),
+        help=argparse.SUPPRESS,
+    )
+
+    run_cmd.add_argument(
+        "--dev-mode",
+        action="store_true",
+        help=argparse.SUPPRESS,  # hidden option - only for development, don't expose to users
+    )
+
+    run_cmd.add_argument(
+        "--quick-mode",
+        action="store_true",
+        help=argparse.SUPPRESS,  # hidden option - only for testing, don't expose to users
+    )
+
+    run_cmd.add_argument(
+        "--no-progress-bar",
+        action="store_true",
+        help="Disable the progress bar, use single line update messages instead",
+    )
+
+    run_cmd.set_defaults(func=exec_cmd_run)
+
+    resume_cmd = commands.add_parser(
+        "resume",
+        usage="asct resume run_dir [options...]",
+        parents=[common_no_wr_args, common_wr_args, common_cache_args],
+        help="Resume a partially completed benchmark run from an existing output directory",
+        description="Resume a previously started benchmark run from an existing output directory. "
+        "Completed benchmarks are restored from saved raw data when their "
+        ".hash file matches the saved recipe JSON artifacts, and only the "
+        "remaining benchmarks are executed.",
+        epilog="examples:\n  asct resume my_dir\n  asct resume my_dir --format json",
+        formatter_class=ASCTCustomHelpFormatter,
+    )
+
+    resume_cmd.add_argument(
+        "run_dir",
+        type=str,
+        help="Existing ASCT output directory to resume",
+    )
+
+    resume_cmd.set_defaults(func=exec_cmd_resume)
+
+    view_cmd = commands.add_parser(
+        "view",
+        usage="asct view run_dir [options...]",
+        help="View results from a previous ASCT run without rerunning benchmarks",
+        parents=[common_no_wr_args, common_wr_args],
+        description="View or save results from a previous ASCT run without rerunning benchmarks. "
+        "The results can be output in the requested format.",
+        epilog="examples:\n  asct view my_dir\n  asct view my_dir --format json --output-dir view_out",
+        formatter_class=ASCTCustomHelpFormatter,
+    )
+
+    view_cmd.add_argument(
+        "run_dir",
+        type=str,
+        help="Existing ASCT output directory to read",
+    )
+
+    view_cmd.set_defaults(func=exec_cmd_view)
+
+    # 'report' command - reports system info, interconnect info, network info and cpu register info
+    report_cmd = commands.add_parser(
+        "report",
+        usage="asct report keyword1 keyword2... [options...]",
+        parents=[common_no_wr_args, common_wr_args, common_cache_args, common_run_report_args],
+        help="Generate a report based on a list of report types and a provided list of keywords",
+        description="Generate a report for a list of report types based on a provided list of keywords and outputs "
+        "the results in a chosen format. Keywords can be negated using the ^ character.",
+        epilog=f"\nreports:\n{get_formatted_benchmark_str(True, ASCT_REPORT_RECIPE_METADATA)}"
+        "\n\nexamples:\n  asct report all ^network-info\n"
+        "  asct report sysinfo cmn --format json --output-dir my_dir\n"
+        "  asct report netinfo cmn --format csv\n"
+        "  asct report IP registers",
+        formatter_class=ASCTCustomHelpFormatter,
+    )
+
+    report_cmd.add_argument(
+        "reports",
+        nargs="*",
+        default=TAG_DEFAULT,
+        choices=get_all_report_tags(),
+        help=argparse.SUPPRESS,
+    )
+
+    report_cmd.add_argument("--detect", action="store_true", help="Perform CMN discovery and CPU mapping")
+
+    report_cmd.set_defaults(func=exec_cmd_report)
+
+    # 'diff' command
+    diff_cmd = commands.add_parser(
+        "diff",
+        usage="asct diff run_dir [run_dir2 ...] [options...]",
+        parents=[common_no_wr_args, common_wr_args],
+        help="Compare results from previous ASCT runs",
+        description="Compare results from previous ASCT runs. "
+        "If --baseline is omitted, the first run_dir is used as baseline and at least one more run_dir is required. "
+        "If --baseline is provided, only one run_dir is required.",
+        epilog="examples:\n"
+        "  asct diff runA runB\n"
+        "  asct diff runB --baseline runA\n"
+        "  asct diff runB runC --baseline runA --sort-by runC",
+        formatter_class=ASCTCustomHelpFormatter,
+    )
+
+    diff_cmd.add_argument(
+        "run_dirs",
+        nargs="+",
+        type=str,
+        help="Run output directories. Need 2+ if --baseline not set, otherwise 1+.",
+    )
+
+    diff_cmd.add_argument(
+        "--baseline",
+        "-b",
+        type=str,
+        help="Specify the baseline run for comparison",
+    )
+
+    diff_cmd.add_argument(
+        "--benchmarks",
+        "-k",
+        nargs="+",
+        metavar="BENCH",
+        default=[],
+        help="Limit comparison to these benchmarks (default: all benchmarks in the runs).",
+    )
+
+    diff_cmd.add_argument(
+        "--sort-by",
+        "-s",
+        type=str,
+        default=None,
+        help="Sort the output table by the specified column (default: no sorting)",
+    )
+
+    diff_cmd.set_defaults(func=exec_cmd_diff)
+
+    # 'config' command
+    config_cmd = commands.add_parser(
+        "config",
+        usage="asct config <save|check> [options...]",
+        parents=[common_no_wr_args],
+        help="Write or verify benchmark user configuration files",
+        description="Write or verify benchmark user configuration files.",
+        epilog="examples:\n"
+        "  asct config save --config-file my-config.json\n"
+        "  asct config save latency --config-file latency.json --update-config loaded-latency.duration=15\n"
+        "  asct config check --config-file my-config.json\n"
+        "  asct config save",
+        formatter_class=ASCTCustomHelpFormatter,
+    )
+
+    config_subcommands = config_cmd.add_subparsers(
+        dest="config_command",
+        title=None,
+        metavar="CONFIG commands",
+        required=True,
+    )
+
+    config_write_default_cmd = config_subcommands.add_parser(
+        "save",
+        help="Write the default benchmark configuration to a file",
+        description="Write the default benchmark configuration to a file, which can be used as a "
+        "start point for user configuration files. Fields can be updated using the --update-config option.",
+        formatter_class=ASCTCustomHelpFormatter,
+    )
+
+    config_write_default_cmd.add_argument(
+        "filter",
+        nargs="*",
+        default=TAG_ALL,
+        choices=get_all_run_tags() + get_all_report_tags(),
+        help=argparse.SUPPRESS,
+    )
+
+    config_write_default_cmd.add_argument(
+        "--config-file",
+        default="",
+        help="Path to the configuration file where to write the default configuration (default: config.json)",
+    )
+
+    config_write_default_cmd.add_argument(
+        "--update-config",
+        nargs="+",
+        action=ASCTSettingsAction,
+        metavar="SETTING=VALUE",
+        default=None,
+        help="Set benchmark user-defined settings",
+    )
+
+    config_write_default_cmd.add_argument(
+        "--force",
+        action="store_true",
+        default=False,
+        help="Force overwriting an existing configuration file",
+    )
+
+    config_write_default_cmd.set_defaults(func=exec_cmd_config_write_default)
+
+    config_check_cmd = config_subcommands.add_parser(
+        "check",
+        help="Check a user configuration file",
+        description="Check a user configuration file for correctness.",
+        formatter_class=ASCTCustomHelpFormatter,
+    )
+
+    config_check_cmd.add_argument(
+        "--config-file",
+        default="config.json",
+        help="Path to the user configuration file (default: config.json)",
+    )
+    config_check_cmd.set_defaults(func=exec_cmd_config_check)
+
+    # if no arguments provided, show the help message instead
+    args = parser.parse_args(args=None if sys.argv[1:] else ["help"])
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()

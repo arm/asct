@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: Increment VERSION on main and open PR
+description: "Write (MAJOR).(MINORY).0.post to VERSION, push branch, open PR"
+inputs:
+  release-version:
+    description: "X.Y (e.g. 0.3)"
+    required: true
+outputs:
+  pr-url:
+    description: "URL of the PR"
+    value: ${{ steps.open.outputs.pr_url }}
+
+runs:
+  using: "composite"
+  steps:
+    # Requires caller to have checked out the repo
+    - name: Compute versions
+      id: vars
+      shell: bash
+      run: |
+        set -euo pipefail
+        REL="${{ inputs.release-version }}"          # X.Y
+        if [[ ! "$REL" =~ ^[0-9]+\.[0-9]+$ ]]; then
+          echo "release-version must be X.Y (e.g. 0.3); got '$REL'" >&2
+          exit 1
+        fi
+        NEW_VERSION="${REL}.0.post"
+        NEW_BRANCH="increment-version/$NEW_VERSION"
+        echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+        echo "new_branch=$NEW_BRANCH" >> "$GITHUB_OUTPUT"
+
+    - name: Edit the VERSION file
+      shell: bash
+      run: |
+        set -euo pipefail
+        new_version="${{ steps.vars.outputs.new_version }}"
+        echo "$new_version" > ./VERSION
+
+    - name: Create or update pull request
+      id: open
+      uses: peter-evans/create-pull-request@v7
+      with:
+        branch: ${{ steps.vars.outputs.new_branch }}
+        base: main
+        title: "Increment VERSION to ${{ steps.vars.outputs.new_version }} after release"
+        body: |
+          This PR bumps the VERSION file after a release.
+
+          It's created automatically by the [increment-version](./.github/actions/increment-version) action as part of the release workflow.

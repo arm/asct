@@ -1,0 +1,349 @@
+CMN flit capture
+================
+
+The CMN interconnect can capture packet headers of CHI transactions
+in the interconnect. Capture happens at individual crosspoints (XPs)
+in the mesh. The XPs capture the headers of "flits", the individual
+message units that make up CHI transactions.
+
+The cmn_capture.py tool demonstrates how to capture flit headers.
+It can be used to give a more detailed picture of interconnect
+traffic than can be obtained by PMU events or counting. For example,
+the actual addresses and attributes of memory transactions can be
+captured.
+
+
+CHI basics
+----------
+CHI is the AMBA Coherent Hub Interface. It is the protocol used in
+the CMN interconnect. The full CHI specification is complex, but a
+basic understanding of CHI request types and transaction flows can
+greatly help understand what is happening in a system. No detailed
+knowledge of CHI is needed to use cmn_capture.py - in fact, the tool
+may be useful when gaining an understanding of CHI.
+
+For an introduction to CHI, see the "Learn the architecture -
+Introducing AMBA CHI" document at
+https://developer.arm.com/documentation/102407/0100
+
+
+Setting up watchpoints to capture CHI flits
+-------------------------------------------
+Flit capture uses the same watchpoints that are used for counting,
+as in the "watchpoint_up" and "watchpoint_down" perf events.
+
+As with watchpoint perf events, a watchpoint must select the
+port number on the crosspoint, and the CHI channel (REQ, RSP,
+SNP or DAT). It can also match selected CHI fields.
+
+A watchpoint match causes the CHI flit header to be captured into
+a small FIFO in the XP. The --format option selects one of several
+different levels of detail that the FIFO can be programmed to capture.
+Depending on the level of detail, a different number of FIFO entries
+are available.
+
+Format 0: transaction id x 18
+
+Format 1: (opcode, transaction id) x 9
+
+Format 2: (srcid, tgtid, opcode, transaction id) x 4
+
+Format 4: (various CHI header fields) x 1
+
+Format 4 is the default, and provides the most insights into what
+types of transactions and responses are occurring in the interconnect.
+This is the default format for cmn_capture.py.
+
+Note that the capture format only affects the selection of fields
+captured from the CHI header. Matches against CHI fields happen
+regardless of capture format.
+
+On CMN versions from CMN-650 onwards, data payloads can also be
+traced, although there are some limitations. See "Data capture"
+later in this document.
+
+
+Flit sampling and histograms
+----------------------------
+cmn_capture.py offers two modes: sampling, and setup/inspect.
+
+In the sampling mode, cmn_capture.py sets up watchpoints and
+then polls the FIFOs to check for captured data. If data is
+present, it is displayed either as a trace or (with --histogram)
+in histogram form.
+
+In setup/inspect mode, the tool is run first to set up watchpoints,
+then separately to check for captured data. This is described
+in more detail under "Setup/inspect mode" below.
+
+REQ, RSP, SNP and DAT traffic can be selected using the --vc option
+with values of 0 to 3 respectively. Additional command-line options
+can filter on CHI fields, such as opcode, as for cmnwatch.py.
+
+In the default sampling mode, the tool will set up watchpoints to
+capture flits at each crosspoint, and print out the captured flits.
+It will take up to 10 samples per crosspoint.
+
+With the --histogram option, the tool summarizes the samples
+for each combination of source and destination type and opcode,
+and also prints a representative flit for each combination.
+Again the default is 10 samples per crosspoint.
+
+An example histogram of REQ traffic is shown below:
+
+      37  HN-F  SN-F   ReadNoSnp             024(HN-F)->060(SN-F):RNSp:00 e 04:ReadNoSnp            lpid=00 ret=020:02   0x00816c087900  64 nSWBA
+      30  RN-F  HN-F   ReadNotSharedDirty    020(RN-F)->044(HN-F):RNSD:01 e 26:ReadNotSharedDirty   lpid=00 ret=000:00   0x00810ea5e340  64 SWBA eca
+      22  HN-F  SN-F   WriteNoSnpFull        024(HN-F)->060(SN-F):WNSF:80 e 1d:WriteNoSnpFull       lpid=00 ret=000:00   0x00816a8f6e00  64 nSWBA
+      17  RN-F  HN-D   ReadNoSnp             020(RN-F)->068(HN-D):RNSp:02 e 04:ReadNoSnp            lpid=00 ret=000:00            <CMN>   8 dev-nRnE eca
+      10  RN-F  HN-F   ReadUnique            04c(RN-F)->024(HN-F):RUnq:81 e 07:ReadUnique           lpid=00 ret=000:00   0x0083fdf5ec40  64 SWBA eca
+       7  RN-F  HN-F   WriteEvictFull        020(RN-F)->024(HN-F):WEFu:81 e 15:WriteEvictFull       lpid=00 ret=000:00   0x0000f1aeb7c0  64 SWBA
+       6  RN-F  HN-F   WriteBackFull         020(RN-F)->024(HN-F):WBFu:80 e 1b:WriteBackFull        lpid=00 ret=000:00   0x00810d87ab00  64 SWBA
+       1  HN-F  SN-F   WriteNoSnpPtl         044(HN-F)->060(SN-F):WNSP:00 e 1c:WriteNoSnpPtl        lpid=00 ret=000:00   0x0000f1acad40  64 nSWBnA
+
+This shows that 37 sampled flits were ReadNoSnp requests from HN-F
+home nodes to SN-F memory controller nodes. A representative flit
+is shown indicating a request to a specific physical address.
+Note also the "ret=" field in the request directing the memory
+controller node to send the data directly to node 0x20 -
+likely the original requesting CPU for this data.
+
+
+Setting up watchpoints
+----------------------
+Watchpoints can be set up on multiple ports and channels.
+cmn_capture.py allows any number of watchpoints to be specified,
+but physically the CMN only implements a set number of watchpoints -
+usually four per crosspoint, where two are for upload (devices
+uploading packets into the interconnect) and two for download
+(devices receiving packets from the interconnect).
+
+cmn_capture allows watchpoint expressions to specify a group of
+watchpoints to be set. Watchpoint expressions must specify a
+CHI channel, can optionally specify CHI fields to match on, and
+can also specify a location or group of locations. Locations can
+be specified by crosspoint, port number, or device type.
+
+Locations can be specified in several ways:
+
+    device_type
+    device_type @ node
+    @ node
+    (x, y)
+    (x, y, port)
+    device_type # logical-id
+    CPU # n
+
+"Device type" is one of the devices supported by CMN, e.g. RN-F,
+HN-F, SN-F, HN-I etc. "HN-F" will match both HN-F and HN-S devices.
+
+The logical-id is assigned at synthesis time and is unique for a
+given node type within a mesh, e.g. there is an XP#1, a HN-S#1 and
+so on.
+
+CPU numbers require CPU mappings in the cached JSON.
+
+Where there are multiple meshes, the "M<n>:" prefix can be used
+to specify the mesh number. Node ids, coordinates and logical ids
+are relative to a mesh. (CPU numbers will be globally unique.)
+
+When executing commands in the DS debugger, arguments containing
+the character '#' will need to be quoted. See `README-arm-ds.md`.
+
+
+Examples
+--------
+
+Monitor REQs sent by RN-Fs and RSPs received by RN-Fs:
+
+    cmn_capture.py rn-f/up:req rn-f/down:rsp
+
+Monitor REQs sent by RN-Fs and REQs downloaded by HN-Fs,
+and RSPs uploaded by HN-Fs. This may result in seeing the same
+packet tiwce (on entry to and on exit from the interconnect),
+or they may be observed only once, because of the way packets
+are sampled:
+
+    cmn_capture.py rn-f/up:req hn-f/down:req hn-f/up:rsp
+
+Monitor RN-F requests with a specific opcode and size of 4 bytes,
+where size is expressed a a power of 2:
+
+    cmn_capture.py rn-f/up:req:opcode=ReadNoSnp:size=2
+
+Monitor RN-F requests with a specific opcode and address.
+As a watchpoint expression, this is similar to the previous case,
+but on current CMN implementations it needs a combination of two
+physical watchpoints. cmn_capture.py handles this automatically.
+
+    cmn_capture.py rn-f/up:req:opcode=ReadNoSnp:addr=0x8000xxxx
+
+Monitor SN-F responses at a specified crosspoint:
+
+    cmn_capture.py sn-f@0x80/up:rsp
+
+Monitor all SNPs sent to port 1 of any node on the left hand side
+of the mesh:
+
+    cmn_capture.py (0,_,1)/down:snp
+
+Monitor REQs received by RN-Fs. Since RN-Fs do not receive REQs,
+nothing will be observed. The tool does not attempt to understand
+which channels are meaningful for which devices:
+
+    cmn_capture.py rn-f/down:req
+
+
+Duplicate packets
+-----------------
+It may happen that a packet is captured by more than one watchpoint.
+One is the case referred to above, where a packet is captured on
+upload and download at different places in the mesh. The other is
+where the same packet is captured at the same time in both watchpoints
+on a single port. This can happen if the watchpoint expressions
+overlap, e.g.
+
+    cmn_capture.py rn-f/up:opcode=ReadNoSnp rn-f/up:addr=0x8000
+
+The tool will set up both watchpoints, and if a packet happens to
+match both, it will be captured in both.
+
+
+Watchpoint rotation
+-------------------
+In CMN, the mesh crosspoints only implemnet two upload and two
+download watchpoints; at any given time each of these is bound to
+a port and channel.
+
+If more watchpoint expressions are specified than there are physical
+watchpoints, cmn_capture will attempt to continually rotate the
+requested watchpoints through the physical watchpoints.
+
+In some cases, a watchpoint expression might need two physical
+watchpoints (combined as a pair): this the case for some combinations
+of CHI field matches, and when capturing data (see below).
+
+
+Setup/inspect mode
+------------------
+In setup/inspect mode, cmn_capture.py is run first to set up
+watchpoints, then can be run again to check for captured data:
+
+    cmn_capture.py --setup ...
+    ... do something to generate traffic ...
+    cmn_capture.py --inspect
+    ... do something else
+    cmn_capture.py --inspect
+
+This mode may be particularly useful when debugging access to
+I/O devices.
+
+Watchpoint rotation cannot be used with setup/inspect mode.
+
+
+Watchpoint actions
+------------------
+Actions can be specified on watchpoints. This modifies behavior
+when a watchpoint matches. Actions are specified as:
+
+    watchpoint#<action>,<action>...
+
+| Action | wp type | what it does |
+|---|---:|---:|
+| data=&lt;format&gt; | DAT | data capture (see below) |
+| tracetag | up | set TraceTag |
+| format=&lt;n&gt; | any | set capture format (default 4) |
+| format2=&lt;n&gt; | any | use an additional watchpoint (format 5 or 6) |
+| debug-trigger | any | generate debug trigger (ATB) |
+
+
+Data capture
+------------
+In addition to showing header details from REQ, RSP, SNP and DAT
+packets, cmn_capture.py offers limited support for capturing data
+payloads from DAT packets, i.e. the actual data being transported
+across the interconnect.
+
+To use this feature, it is necessary to know something about how
+data payloads are carried in CMN.
+
+Each DAT packet carries up to 32 bytes of data. The 'active' data
+is naturally aligned within the payload, e.g. for a 4-byte write to
+address 0x8018, the value will be at offset 0x18. CMN can capture
+either the low 16 bytes or the high 16 bytes. So to capture data
+for a transaction to a known address, bit 4 of the address should
+be examined to see whether the low or high 16 bytes should be
+captured.
+
+On top of this, 64-byte transfers (e.g. full cache lines) are
+carried in two DAT packets, distinguished by the DataId field
+being 0 or 2. So a single REQ for a 64-byte transfer, will be
+associated with two DAT packets, distinguished by DataId.
+
+In cmn_capture.py, data capture can be enabled using the "data"
+modifier on DAT watchpoints, for instance:
+
+    cmn_capture.py sn-f/up:dat#data=&lt;format&gt;
+
+Several different formats are available. Some formats require
+two watchpoints to capture a DAT header and a 16-byte chunk of
+payload data, or two 16-byte chunks. As a maximum of two
+watchpoints are available, it is not possible to capture the
+header and the full 32-byte payload comprising two chunks.
+
+Avilable formats include:
+
+| Mnemonic | dataid | format 1 | format 2 |
+|---|---:|---:|---:|---:|
+| HDR |  | 4 |  | all DAT headers |
+| H01 | 0 | 4 |  | DAT header for first packet |
+| H23 | 2 | 4 |  | DAT header for second packet |
+| D0 | 0 | 5 |  | payload bits 127:0 |
+| D1 | 0 | 6 |  | payload bits 255:128 |
+| D2 | 2 | 5 |  | payload bits 383:256 |
+| D3 | 2 | 6 |  | payload bits 511:384 |
+| HD0 | 0 | 4 | 5 | header + payload bits 127:0 |
+| HD1 | 0 | 4 | 6 | header + payload bits 255:128 |
+| HD2 | 2 | 4 | 5 | header + payload bits 383:256 |
+| HD3 | 2 | 4 | 6 | header + payload bits 511:384 |
+| DALL |  | 5 | 6 | all payloads |
+| D01 | 0 | 5 | 6 | payload bits 255:0 |
+| D23 | 0 | 5 | 6 | payload bits 511:256 |
+
+Note that the "DALL" format will capture all data payloads,
+but the captured data does not indicate whether it is bits
+255:0 or bits 511:256.
+
+Data capture is not supported in CMN-600.
+
+
+Flit capture and security
+-------------------------
+Depending on the security configuration of the interconnect, it may
+be possible to capture either of:
+
+ - REQ, RSP, SNP and DAT flits, including DVM messages and Secure flits
+
+ - Non-Secure REQ and SNP flits only, and no Secure flits or DVM
+
+"Secure" and "Non-Secure" refer here to the security attributes of
+the traffic. "Secure" traffic is generally specific to I/O or secure
+firmware. Traffic originating from operating system or user applications
+will be "Non-Secure".
+
+If the capture tool appears to be only able to capture REQ and SNP
+traffic, the cause is likely to be security configuration.
+In some cases it may be possible to change the security configuration,
+via firmware or an external debugger.
+
+
+cmn_capture.py requirements
+---------------------------
+cmn_capture.py can run on any Linux system with CMN accessible
+via /dev/mem - the same requirements as cmn_devmem.py.
+
+cmn_capture.py accesses the CMN directly, bypassing the Linux kernel
+CMN PMU drivers. It generally needs root privilege to run, as well
+as access to physical memory space via /dev/mem. It aims to leave
+the CMN in a state that is compatible with the kernel drivers,
+but using both at the same time may cause unexpected results,
+especially if watchpoint PMU events are being used.

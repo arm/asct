@@ -1,0 +1,511 @@
+{
+  "registers": {
+    "V2_CPUECTLR_EL1": {
+      "fields": [
+        {
+          "name": "CMC_MIN_WAYS",
+          "msb": 63,
+          "lsb": 61,
+          "values": {
+            "0x0": "CMC disabled",
+            "0x1": "CMC must leave ≥1 L2 way for data",
+            "0x2": "CMC must leave ≥2 L2 ways for data",
+            "0x3": "CMC must leave ≥3 L2 ways for data",
+            "0x4": "CMC must leave ≥4 L2 ways for data",
+            "0x5": "CMC must leave ≥5 L2 ways for data",
+            "0x6": "CMC must leave ≥6 L2 ways for data",
+            "0x7": "CMC must leave ≥7 L2 ways for data"
+          }
+        },
+        {
+          "name": "L2_INST_PART",
+          "msb": 60,
+          "lsb": 58,
+          "values": {
+            "0x0": "No I ways reserved",
+            "0x1": "Reserve 1 way (7)",
+            "0x2": "Reserve 2 ways (7:6)",
+            "0x3": "Reserve 3 ways (7:5)",
+            "0x4": "Reserve 4 ways (7:4)",
+            "0x5": "Reserve 5 ways (7:3)",
+            "0x6": "Reserve 6 ways (7:2)",
+            "0x7": "Reserve 7 ways (7:1)"
+          }
+        },
+        {
+          "name": "L2_DATA_PART",
+          "msb": 57,
+          "lsb": 55,
+          "values": {
+            "0x0": "No D ways reserved",
+            "0x1": "Reserve 1 way (0)",
+            "0x2": "Reserve 2 ways (1:0)",
+            "0x3": "Reserve 3 ways (2:0)",
+            "0x4": "Reserve 4 ways (3:0)",
+            "0x5": "Reserve 5 ways (4:0)",
+            "0x6": "Reserve 6 ways (5:0)",
+            "0x7": "Reserve 7 ways (6:0)"
+          }
+        },
+        {
+          "name": "MM_VMID_THR",
+          "msb": 54,
+          "lsb": 54,
+          "values": {
+            "0x0": "Flush after 16 VMIDs",
+            "0x1": "Flush after 32 VMIDs"
+          }
+        },
+        {
+          "name": "MM_ASP_EN",
+          "msb": 53,
+          "lsb": 53,
+          "values": {
+            "0x0": "Enable L2 TLB splinter alloc",
+            "0x1": "Disable L2 TLB splinter alloc"
+          }
+        },
+        {
+          "name": "MM_CH_DIS",
+          "msb": 52,
+          "lsb": 52,
+          "values": {
+            "0x0": "Enable contiguous hint",
+            "0x1": "Disable contiguous hint"
+          }
+        },
+        {
+          "name": "MM_TLBPF_DIS",
+          "msb": 51,
+          "lsb": 51,
+          "values": {
+            "0x0": "Enable TLB prefetcher",
+            "0x1": "Disable TLB prefetcher"
+          }
+        },
+        {
+          "name": "RES0_50_48",
+          "msb": 50,
+          "lsb": 48,
+          "reserved": true
+        },
+        {
+          "name": "HPA_L1_DIS",
+          "msb": 47,
+          "lsb": 47,
+          "values": {
+            "0x0": "Enable L1 TLB HPA",
+            "0x1": "Disable L1 TLB HPA"
+          }
+        },
+        {
+          "name": "HPA_DIS",
+          "msb": 46,
+          "lsb": 46,
+          "values": {
+            "0x0": "Enable HPA",
+            "0x1": "Disable HPA"
+          }
+        },
+        {
+          "name": "DCC",
+          "msb": 45,
+          "lsb": 44,
+          "values": {
+            "0x0": "No data on clean evict",
+            "0x1": "WriteEvictFull for Unique Clean",
+            "0x2": "WriteEvictOrEvict for Unique Clean",
+            "0x3": "WriteEvictOrEvict for Unique/Shared Clean"
+          }
+        },
+        {
+          "name": "EFC",
+          "msb": 43,
+          "lsb": 43,
+          "values": {
+            "0x0": "No data on flush/CISW; Evict via DSFP",
+            "0x1": "Data sending via DCC; Evict via DSFP"
+          }
+        },
+        {
+          "name": "DSFP",
+          "msb": 42,
+          "lsb": 42,
+          "values": {
+            "0x0": "Disable Evict on clean no-data",
+            "0x1": "Enable Evict on clean no-data"
+          }
+        },
+        {
+          "name": "PFT_MM",
+          "msb": 41,
+          "lsb": 40,
+          "values": {
+            "0x0": "Disable PrefetchTgt for MMU",
+            "0x1": "Conservative for cacheable; always for NC",
+            "0x2": "Aggressive for cacheable; always for NC",
+            "0x3": "Always for cacheable; always for NC"
+          }
+        },
+        {
+          "name": "PFT_LS",
+          "msb": 39,
+          "lsb": 38,
+          "values": {
+            "0x0": "Disable PrefetchTgt for LS",
+            "0x1": "Conservative for cacheable; always for NC",
+            "0x2": "Aggressive for cacheable; always for NC",
+            "0x3": "Always for cacheable; always for NC"
+          }
+        },
+        {
+          "name": "PFT_IF",
+          "msb": 37,
+          "lsb": 36,
+          "values": {
+            "0x0": "Disable PrefetchTgt for IF",
+            "0x1": "Conservative for cacheable; always for NC",
+            "0x2": "Aggressive for cacheable; always for NC",
+            "0x3": "Always for cacheable; always for NC"
+          }
+        },
+        {
+          "name": "IF_LIKELY_SHARED",
+          "msb": 35,
+          "lsb": 35,
+          "values": {
+            "0x0": "IF requests do not assert LikelyShared",
+            "0x1": "IF requests assert LikelyShared (SharedClean)"
+          }
+        },
+        {
+          "name": "RES0_34_34",
+          "msb": 34,
+          "lsb": 34,
+          "reserved": true
+        },
+        {
+          "name": "ATOMIC_LD_FORCE_NEAR",
+          "msb": 33,
+          "lsb": 33,
+          "values": {
+            "0x0": "Near if Exclusive; else far",
+            "0x1": "Force near by fill"
+          }
+        },
+        {
+          "name": "ATOMIC_ACQ_NEAR",
+          "msb": 32,
+          "lsb": 32,
+          "values": {
+            "0x0": "Near if Exclusive; else far",
+            "0x1": "May do 1 fill to be near"
+          }
+        },
+        {
+          "name": "ATOMIC_ST_NEAR",
+          "msb": 31,
+          "lsb": 31,
+          "values": {
+            "0x0": "Near if Exclusive; else far",
+            "0x1": "May do 1 fill to be near"
+          }
+        },
+        {
+          "name": "ATOMIC_REL_NEAR",
+          "msb": 30,
+          "lsb": 30,
+          "values": {
+            "0x0": "Near if Exclusive; else far",
+            "0x1": "May do 1 fill to be near"
+          }
+        },
+        {
+          "name": "ATOMIC_LD_NEAR",
+          "msb": 29,
+          "lsb": 29,
+          "values": {
+            "0x0": "Near if Exclusive; else far",
+            "0x1": "May do 1 fill to be near"
+          }
+        },
+        {
+          "name": "TLD_PRED_DIS",
+          "msb": 28,
+          "lsb": 28,
+          "values": {
+            "0x0": "Enable transient load prediction",
+            "0x1": "Disable transient load prediction"
+          }
+        },
+        {
+          "name": "TLD_PRED_MODE",
+          "msb": 27,
+          "lsb": 27,
+          "values": {
+            "0x0": "Aggressive TLP disabled",
+            "0x1": "Aggressive TLP enabled"
+          }
+        },
+        {
+          "name": "DTLB_CABT_EN",
+          "msb": 26,
+          "lsb": 26,
+          "values": {
+            "0x0": "Disable TLB conflict DABT",
+            "0x1": "Enable TLB conflict DABT"
+          }
+        },
+        {
+          "name": "WS_THR_L2",
+          "msb": 25,
+          "lsb": 24,
+          "values": {
+            "0x0": "256B",
+            "0x1": "4KB",
+            "0x2": "8KB",
+            "0x3": "Disable"
+          }
+        },
+        {
+          "name": "WS_THR_L3",
+          "msb": 23,
+          "lsb": 22,
+          "values": {
+            "0x0": "128KB",
+            "0x1": "256KB",
+            "0x2": "512KB",
+            "0x3": "Disable"
+          }
+        },
+        {
+          "name": "WS_THR_L4",
+          "msb": 21,
+          "lsb": 20,
+          "values": {
+            "0x0": "256KB",
+            "0x1": "512KB",
+            "0x2": "1MB",
+            "0x3": "Disable"
+          }
+        },
+        {
+          "name": "WS_THR_DRAM",
+          "msb": 19,
+          "lsb": 18,
+          "values": {
+            "0x0": "512KB",
+            "0x1": "1MB",
+            "0x2": "2MB",
+            "0x3": "Disable"
+          }
+        },
+        {
+          "name": "RES0_17_16",
+          "msb": 17,
+          "lsb": 16,
+          "reserved": true
+        },
+        {
+          "name": "PF_DIS",
+          "msb": 15,
+          "lsb": 15,
+          "values": {
+            "0x0": "Enable HW prefetching",
+            "0x1": "Disable HW prefetching"
+          }
+        },
+        {
+          "name": "RES0_14_14",
+          "msb": 14,
+          "lsb": 14,
+          "reserved": true
+        },
+        {
+          "name": "PF_SS_L2_DIST",
+          "msb": 13,
+          "lsb": 12,
+          "values": {
+            "0x0": "22 lines ahead",
+            "0x1": "40 lines ahead",
+            "0x2": "60 lines ahead",
+            "0x3": "Dynamic"
+          }
+        },
+        {
+          "name": "RES0_11_10",
+          "msb": 11,
+          "lsb": 10,
+          "reserved": true
+        },
+        {
+          "name": "PF_STS_DIS",
+          "msb": 9,
+          "lsb": 9,
+          "values": {
+            "0x0": "Enable store-stride prefetch",
+            "0x1": "Disable store-stride prefetch"
+          }
+        },
+        {
+          "name": "PF_STI_DIS",
+          "msb": 8,
+          "lsb": 8,
+          "values": {
+            "0x0": "Enable store prefetch at issue",
+            "0x1": "Disable store prefetch at issue"
+          }
+        },
+        {
+          "name": "RES0_7_6",
+          "msb": 7,
+          "lsb": 6,
+          "reserved": true
+        },
+        {
+          "name": "RPF_MODE",
+          "msb": 5,
+          "lsb": 4,
+          "values": {
+            "0x0": "Dynamic",
+            "0x1": "Conservative",
+            "0x2": "Very conservative",
+            "0x3": "Most conservative (disable)"
+          }
+        },
+        {
+          "name": "RPF_LO_CONF",
+          "msb": 3,
+          "lsb": 3,
+          "values": {
+            "0x0": "Mostly do not train on single access",
+            "0x1": "Always train on single access"
+          }
+        },
+        {
+          "name": "RES0_2_1",
+          "msb": 2,
+          "lsb": 1,
+          "reserved": true
+        },
+        {
+          "name": "EXTLLC",
+          "msb": 0,
+          "lsb": 0,
+          "values": {
+            "0x0": "Internal LLC present",
+            "0x1": "External LLC present"
+          }
+        }
+      ]
+    },
+    "V2_CPUECTLR2_EL1": {
+      "fields": [
+        {
+          "name": "RES0_63_17",
+          "msb": 63,
+          "lsb": 17,
+          "reserved": true
+        },
+        {
+          "name": "TXREQ_MIN",
+          "msb": 16,
+          "lsb": 15,
+          "values": {
+            "0x0": "1/4 of L2 TQ size",
+            "0x1": "1/8 of L2 TQ size",
+            "0x2": "1/16 of L2 TQ size",
+            "0x3": "1/32 of L2 TQ size"
+          }
+        },
+        {
+          "name": "PF_MODE",
+          "msb": 14,
+          "lsb": 11,
+          "values": {
+            "0x0": "Modes [0,0] (most aggressive)",
+            "0x1": "Modes [0,1]",
+            "0x2": "Modes [0,2]",
+            "0x3": "Modes [0,3]",
+            "0x4": "Modes [1,1]",
+            "0x5": "Modes [1,2]",
+            "0x6": "Modes [1,3]",
+            "0x7": "Modes [2,2]",
+            "0x8": "Modes [2,3]",
+            "0x9": "Modes [3,3] (most conservative)",
+            "0xA": "reserved",
+            "0xB": "reserved",
+            "0xC": "reserved",
+            "0xD": "reserved",
+            "0xE": "reserved",
+            "0xF": "reserved"
+          }
+        },
+        {
+          "name": "CBUSY_FILTER_WINDOW",
+          "msb": 10,
+          "lsb": 9,
+          "values": {
+            "0x0": "256",
+            "0x1": "64",
+            "0x2": "128",
+            "0x3": "512"
+          }
+        },
+        {
+          "name": "CBUSY_FILTER_THRESHOLD",
+          "msb": 8,
+          "lsb": 7,
+          "values": {
+            "0x0": "1/16",
+            "0x1": "1/32",
+            "0x2": "1/8",
+            "0x3": "1/4"
+          }
+        },
+        {
+          "name": "TXREQ_LIMIT_DEC",
+          "msb": 6,
+          "lsb": 5,
+          "values": {
+            "0x0": "4",
+            "0x1": "8",
+            "0x2": "16",
+            "0x3": "2"
+          }
+        },
+        {
+          "name": "TXREQ_LIMIT_INC",
+          "msb": 4,
+          "lsb": 3,
+          "values": {
+            "0x0": "4",
+            "0x1": "8",
+            "0x2": "16",
+            "0x3": "2"
+          }
+        },
+        {
+          "name": "TXREQ_LIMIT_DYNAMIC",
+          "msb": 2,
+          "lsb": 2,
+          "values": {
+            "0x0": "Static max from TXREQ_MAX",
+            "0x1": "Dynamic control based on CBusy"
+          }
+        },
+        {
+          "name": "TXREQ_MAX",
+          "msb": 1,
+          "lsb": 0,
+          "values": {
+            "0x0": "Full L2 TQ size",
+            "0x1": "3/4 of L2 TQ size",
+            "0x2": "1/2 of L2 TQ size",
+            "0x3": "1/4 of L2 TQ size"
+          }
+        }
+      ]
+    }
+  }
+}
